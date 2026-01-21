@@ -1,20 +1,48 @@
 import { Box, Button, Grid, Input, Typography } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import eyeopen from "./../../assests/view.png";
 import eyeclose from "./../../assests/hide.png";
+import axios from "axios";
 
 const LoginForm = () => {
+
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     username: "",
     password: "",
   });
 
   const [showPassword, setShowPassword] = useState(false);
+  const [succMessage, setSuccMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [messageType, setMessageType] = useState(false);
+  const [submited, setSubmit] = useState(true);
+  const [messageBox, setMessageBox] = useState(false);
+
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9@]).{8,16}$/;
+
+    // password validation message
+  const passwordError =
+    formData.password && !passwordRegex.test(formData.password)
+      ? "Password must be 8–16 chars, include upper, lower, number, symbol, and no @"
+      : "";
 
   const isValidField =
     formData.username.trim() !== "" &&
-    formData.password.trim() !== "";
+    formData.password.trim() !== "" &&
+    passwordRegex.test(formData.password);
+
+  useEffect(() => {
+    if (submited) {
+      setFormData({
+        username: "",
+        password: ""
+      });
+    }
+  }, [submited]);
 
   const handleFormData = (e) => {
     const { name, value } = e.target;
@@ -24,6 +52,39 @@ const LoginForm = () => {
   const clearFormData = () => {
     setFormData({ username: "", password: "" });
   };
+
+  const LoginUser = async(data) => {
+
+    try {
+      
+      const response = await axios.post(
+        'http://localhost:3001/api/v1/auth/login',
+        data
+      )
+
+      setSuccMessage(response?.data?.message);
+      setSubmit(true);
+      setMessageType(true);
+      setMessageBox(true);
+
+      localStorage.setItem("token", response.data.token);
+
+      setTimeout(() => setMessageBox(false), 3000);
+
+      navigate('/dashboard');
+
+    } catch (error) {
+
+      setErrorMessage(
+        error.response?.data?.message || "User Login failed"
+      );
+      setMessageType(false);
+      setMessageBox(true);
+      setTimeout(() => setMessageBox(false), 3000);
+
+    }
+  }
+
 
   return (
     <Grid
@@ -58,11 +119,34 @@ const LoginForm = () => {
             sx={{
               fontSize: 35,
               textAlign: "center",
-              marginBottom: "30px",
+              marginBottom: "10px",
             }}
           >
             Sign in
           </Typography>
+
+          {/* Message box */}
+          {
+            messageBox &&
+              <Box 
+                sx={{ 
+                  width: "65%", 
+                  margin: "auto", 
+                  textAlign: "center", 
+                  borderRadius: '10px',
+                  padding: '5px',
+                  backgroundColor: messageType ? 'blue' : 'red',
+                  marginBottom: '20px',
+                }}
+              >
+                <Typography
+                  component={'label'}
+                  sx={{ color: "darkblue", textDecoration: "none", }}
+                >
+                  { messageType ? succMessage : errorMessage }
+                </Typography>
+              </Box>
+          }
 
           {/* Username */}
           <Box
@@ -135,6 +219,13 @@ const LoginForm = () => {
             </Box>
           </Box>
 
+          {/* PASSWORD ERROR */}
+          {passwordError && (
+            <Box sx={{ width: "65%", margin: "auto", textAlign: "left", marginBottom: "10px" }}>
+              <Typography sx={{ color: 'darkred', fontSize: 12 }}>{passwordError}</Typography>
+            </Box>
+          )}
+
           {/* Forgot Password */}
           <Box sx={{ width: "65%", margin: "auto", textAlign: "right" }}>
             <Typography
@@ -165,6 +256,10 @@ const LoginForm = () => {
                 color: "black",
                 boxShadow: "0px 8px 20px rgba(0,0,0,0.25)",
               }}
+              onClick={() => LoginUser({
+                username: formData.username, 
+                password: formData.password
+              })}
             >
               Sign in
             </Button>
